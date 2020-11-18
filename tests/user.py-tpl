@@ -1,0 +1,29 @@
+from django.contrib.auth.models import User
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+
+class UserTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='test_user',
+                                             email='test_user@...',
+                                             password='test_user')
+
+    def test_get_users(self):
+        """
+        Ensure we can get users list.
+        """
+        url = reverse('user-list')
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(User.objects.count(), 1)
+        self.assertEqual(User.objects.get(), self.user)
+
+    def test_get_users_unauthorized(self):
+        """
+        Ensure authentication is required for users list.
+        """
+        url = reverse('user-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
