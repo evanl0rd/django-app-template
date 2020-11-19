@@ -1,3 +1,92 @@
-from django.shortcuts import render
+from django.contrib.auth.models import User, Group
+from django_filters import rest_framework as filters
+from rest_framework.mixins import (CreateModelMixin, ListModelMixin,
+                                   RetrieveModelMixin)
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet, ModelViewSet, ViewSet
+from .serializers import (UserSerializer, GroupSerializer,
+                          ExampleSerializer, TaskSerializer)
+from .models import Example
 
-# Create your views here.
+import logging
+
+logger = logging.getLogger(__name__)
+
+class HealthViewSet(ViewSet):
+    permission_classes = [AllowAny]
+
+    def list(self, request):
+        return Response('Service is available.')
+
+class UserViewSet(ModelViewSet):
+    """
+    API endpoint that allows users to be viewed or edited.
+    """
+    queryset = User.objects.all().order_by('-date_joined')
+    serializer_class = UserSerializer
+    filter_fields = ('username', 'email',)
+
+class GroupViewSet(ModelViewSet):
+    """
+    API endpoint that allows groups to be viewed or edited.
+    """
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+    filter_fields = ('name',)
+
+class ExampleFilter(filters.FilterSet):
+    min_int = filters.NumberFilter(field_name='integer_field',
+                                   lookup_expr='gte')
+    max_int = filters.NumberFilter(field_name='integer_field',
+                                   lookup_expr='lte')
+
+    class Meta:
+        model = Example
+        fields = ['min_int', 'max_int']
+
+class ExampleViewSet(GenericViewSet, CreateModelMixin, ListModelMixin,
+                     RetrieveModelMixin):
+    """
+    API endpoint that allows examples to be viewed.
+
+    Allowed HTTP verbs are limited by using the GenericViewSet with the
+    appropriate mixins.
+    """
+    queryset = Example.objects.all()
+    serializer_class = ExampleSerializer
+    filterset_class = ExampleFilter
+
+class Task():
+    def __init__(self, **kwargs):
+        for field in ('id', 'name', 'owner', 'status'):
+            setattr(self, field, kwargs.get(field, None))
+
+class TaskViewSet(ViewSet):
+    """
+    API endpoint that allows "tasks" to be viewed.
+
+    This is a model-less view set, so there's no queryset.
+    https://medium.com/django-rest-framework/django-rest-framework-viewset-when-you-don-t-have-a-model-335a0490ba6f
+    """
+    serializer_class = TaskSerializer
+
+    tasks = {
+        1: Task(id=1, name='Demo', owner='adcx8j7', status='Completed'),
+        2: Task(id=2, name='Model less demo', owner='adcx8j7', status='In Progress'),
+        3: Task(id=3, name='Sleep more', owner='adcx8j7', status='New'),
+    }
+
+    def list(self, request):
+        logger.info('Getting list of tasks.')
+        serializer = self.get_serializer(
+            instance=self.tasks.values(), many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        logger.info(f'Getting task {pk}.')
+        serializer = self.get_serializer(self.tasks[int(pk)])
+        return Response(serializer.data)
+
+    def get_serializer(self, *args, **kwargs):
+        return self.serializer_class(*args, **kwargs)

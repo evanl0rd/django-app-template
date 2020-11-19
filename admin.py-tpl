@@ -1,3 +1,16 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin, GroupAdmin
+from django.contrib.auth.models import User, Group
 
-# Register your models here.
+import logging
+
+logger = logging.getLogger(__name__)
+
+class AdminSite(admin.AdminSite):
+    site_header = 'Administration'
+    login_template = 'admin/login.html'
+
+admin_site = AdminSite(name='admin')
+
+admin_site.register(User, UserAdmin)
+admin_site.register(Group, GroupAdmin)
